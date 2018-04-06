@@ -6,6 +6,7 @@ import cv2
 import sys
 import os
 import math
+import dlib
 
 
 # initialize the list of class labels MobileNet SSD was trained to
@@ -41,25 +42,28 @@ class Det:
         print("[INFO] loading model...")
         self.net = cv2.dnn.readNetFromCaffe(prototxt, model)
 
-        self.trackers = []
+        self.person_trackers = []
 
-    def __detect_rects(self, frame):
+    def distance(self, pt1, pt2):
+        return math.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
+
+    def __detect_persons(self, img):
         # grab the frame dimensions and convert it to a blob
-        (h, w) = frame.shape[:2]
+        (h, w) = img.shape[:2]
         # load the input image and construct an input blob for the image
         # by resizing to a fixed 300x300 pixels and then normalizing it
         # (note: normalization is done via the authors of the MobileNet SSD
         # implementation)
 
         # blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 0.007843, (300, 300), 127.5)
-        blob = cv2.dnn.blobFromImage(frame, 0.007843, (w, h), 127.5)
+        blob = cv2.dnn.blobFromImage(img, 0.007843, (w, h), 127.5)
 
         # pass the blob through the network and obtain the detections and
         # predictions
         self.net.setInput(blob)
         detections = self.net.forward()
 
-        rects = []
+        persons = []
         # loop over the detections
         for i in np.arange(0, detections.shape[2]):
             # extract the confidence (i.e., probability) associated with
@@ -75,22 +79,21 @@ class Det:
             if confidence > self.confidence and idx in TARGET_OBJs:
                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                 (x1, y1, x2, y2) = box.astype("int")
-                rects.append({'label': idx,
-                              'score': confidence * 100,
-                              'box': (x1, y1, x2 - x1, y2 - y1)})
-        return rects
+                persons.append({'label': idx,
+                                'score': confidence * 100,
+                                'box': (x1, y1, x2 - x1, y2 - y1)})
+        return persons
 
-    def __show_rects(self, show_img, frame):
-
-        h_r = float(show_img.shape[0]) / frame.shape[0]
-        w_r = float(show_img.shape[1]) / frame.shape[1]
+    def __show_rects(self, show_img, img):
+        h_r = float(show_img.shape[0]) / img.shape[0]
+        w_r = float(show_img.shape[1]) / img.shape[1]
 
         # draw the prediction on the frame
-        for t in self.trackers:
-            label = "{}: {:.2f}%".format(CLASSES[t['label']], t['score'])
-            (x, y, w, h) = (t['box'] * np.array([w_r, h_r, w_r, h_r])).astype(np.int)
+        for p in self.person_trackers:
+            label = "{}: {:.2f}%".format(CLASSES[p['label']], p['score'])
+            (x, y, w, h) = (p['box'] * np.array([w_r, h_r, w_r, h_r])).astype(np.int)
             if not self.det_flag:
-                color = COLORS[t['label']]
+                color = COLORS[p['label']]
             else:
                 color = (0, 0, 255)
             cv2.rectangle(show_img, (x, y), (x+w, y+h), color, 2)
@@ -99,9 +102,9 @@ class Det:
 
         return show_img
 
-    def __same_rect(self, rect1, rect2):
-        (x1, y1, w1, h1) = rect1
-        (x2, y2, w2, h2) = rect2
+    def same_rect(self, before, after):
+        (x1, y1, w1, h1) = before
+        (x2, y2, w2, h2) = after
 
         # overlay_rect
         _x = max(x1, x2)
@@ -117,76 +120,80 @@ class Det:
         else:
             return True
 
-    def __update_trackers(self, frame, rects):
-        to_adds = []
-        for t in self.trackers:
-            t['updated'] -= 1
+    def __update_trackers(self, img, rects):
+        for p in self.person_trackers:
+            p['chk_num'] -= 1
 
-        for rect in rects:
-            _flag = False
-            for t in self.trackers:
-                if self.__same_rect(t['box'], rect['box']):
-                    avg_box = rect['box']
-                    # avg_box = tuple((np.array(rect['box']) / 2.0 + np.array(t['box']) / 2.0).astype(np.int))
-                    t['tracker'].init(frame, avg_box)
-                    t['label'] = rect['label']
-                    t['score'] = rect['score']
-                    t['box'] = avg_box
-                    t['updated'] = 0
+        # upgrade trackers
+        j = 0
+        while j < len(rects):
+            matched = None
+            min_dis = None
 
-                    _flag = True
-                    break
-            if not _flag:
-                if self.tracker_type == 'BOOSTING':
-                    tracker = cv2.TrackerBoosting_create()
-                elif self.tracker_type == 'MIL':
-                    tracker = cv2.TrackerMIL_create()
-                elif self.tracker_type == 'KCF':
-                    tracker = cv2.TrackerKCF_create()
-                elif self.tracker_type == 'TLD':
-                    tracker = cv2.TrackerTLD_create()
-                elif self.tracker_type == 'MEDIANFLOW':
-                    tracker = cv2.TrackerMedianFlow_create()
-                elif self.tracker_type == 'GOTURN':
-                    tracker = cv2.TrackerGOTURN_create()
+            r = rects[j]
 
-                try:
-                    tracker.init(frame, rect['box'])
-                    to_adds.append({
-                        'tracker': tracker,
-                        'box': rect['box'],
-                        'label': rect['label'],
-                        'score': rect['score'],
-                        'updated': 0,
-                    })
-                except Exception:
-                    pass
+            i = 0
+            while i < len(self.person_trackers):
+                p = self.person_trackers[i]
+                (x1, y1, w1, h1) = p['box']
+                (x2, y2, w2, h2) = r['box']
+                cur_dis = self.distance(pt1=(x1 + w1 // 2, y1 + h1 // 2), pt2=(x2 + w2 // 2, y2 + h2 // 2))
 
-        for add in to_adds:
-            self.trackers.append(add)
-        i = 0
-        while i < len(self.trackers):
-            t = self.trackers[i]
-            if t['updated'] < - 10:
-                self.trackers.remove(t)
-                continue
-            else:
+                if min_dis is None or min_dis > cur_dis:
+                    min_dis = cur_dis
+                    matched = p
+
                 i += 1
 
-    def __track_rects(self, frame):
-        height, width = frame.shape[:2]
+            b_same = False
+            if matched is not None:
+                b_same = self.same_rect(before=matched['box'], after=r['box'])
+
+            if b_same:
+                avg_box = tuple((np.array(matched['box']) * 0.5 + np.array(r['box']) * 0.5).astype(np.int))
+
+                matched['box'] = avg_box
+                (x, y, w, h) = avg_box
+                matched['tracker'].start_track(img, dlib.rectangle(x, y, x + w, y + h))
+                matched['label'] = r['label']
+                matched['score'] = r['score']
+                matched['chk_num'] = 0
+
+            else:
+                # create new tracker
+                (x, y, w, h) = r['box']
+                tracker = dlib.correlation_tracker()
+                tracker.start_track(img, dlib.rectangle(x, y, x + w, y + h))
+                a = {
+                    'tracker': tracker,
+                    'box': r['box'],
+                    'label': r['label'],
+                    'score': r['score'],
+                    'chk_num': 0
+                }
+                self.person_trackers.append(a)
+            j += 1
+
+    def __track_rects(self, img):
+        height, width = img.shape[:2]
+
         to_dels = []
-        for t in self.trackers:
-            _, rect = t['tracker'].update(frame)
-            t['box'] = rect
-            (x, y, w, h) = rect
+        for p in self.person_trackers:
+            _ = p['tracker'].update(img)
+            if p['chk_num'] < -10:
+                to_dels.append(p)
+
+            loc = p['tracker'].get_position()
+            [x, y, w, h] = [int(loc.left()), int(loc.top()), int(loc.width()), int(loc.height())]
+            p['box'] = [x, y, w, h]
+
             if not (self.margin < x < width - w - self.margin) or not (self.margin < y < height - h - self.margin):
-                to_dels.append(t)
+                to_dels.append(p)
 
         for d in to_dels:
-            self.trackers.remove(d)
+            self.person_trackers.remove(d)
 
-    def run(self, video, width=None, skip=5):
+    def run(self, video, zoom_ratio=0.5, skip=5):
         # initialize the video stream, allow the cammera sensor to warmup,
         # and initialize the FPS counter
         print("[INFO] starting video stream...")
@@ -194,12 +201,8 @@ class Det:
         cap = cv2.VideoCapture(video)
         time.sleep(2.0)
         fps = FPS().start()
-        if width is None:
-            dst_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            dst_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        else:
-            dst_width = width
-            dst_height = int(cap.shape[0] * width / cap.shape[1])
+        dst_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) * zoom_ratio)
+        dst_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) * zoom_ratio)
 
         fourcc = cv2.VideoWriter_fourcc(*'X264')
         saver = cv2.VideoWriter("result.avi", fourcc, 30.0, (dst_width, dst_height))
@@ -215,15 +218,13 @@ class Det:
             show_img = frame.copy()
             resize = imutils.resize(frame, width=dst_width)
 
-            # grab the frame from the threaded video stream and resize it
-            # to have a maximum width of 400 pixels
             if cnt % skip == 0:
-                rects = self.__detect_rects(frame=resize)
-                self.__update_trackers(frame=resize, rects=rects)
+                persons = self.__detect_persons(img=resize)
+                self.__update_trackers(img=resize, rects=persons)
             else:
-                self.__track_rects(frame=resize)
+                self.__track_rects(img=resize)
 
-            result = self.__show_rects(show_img=show_img, frame=resize)
+            result = self.__show_rects(show_img=show_img, img=resize)
 
             # show the output frame
             cv2.imshow("result", result)
@@ -246,3 +247,12 @@ class Det:
         cv2.destroyAllWindows()
         saver.release()
         cap.release()
+
+
+if __name__ == '__main__':
+    paths = ["MobileNetSSD_deploy.prototxt.txt", "MobileNetSSD_deploy.caffemodel"]
+    det = Det(prototxt=paths[0], model=paths[1])
+
+    # video = "../data/crop1/crop.mp4"
+    video = "../data/video/helmet/cctv robbery.mp4"
+    det.run(video=video, zoom_ratio=1.0)
