@@ -17,11 +17,14 @@ CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
            "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
 TARGET_OBJs = [15]  # person   14, 7, 6
 COLORS = np.random.uniform(0, 255, size=(len(CLASSES), 3))
+COLOR_TRACK = (255, 255, 0)
+COLOR_TARGET = (0, 0, 255)
+
 TRACK_TYPES = ['BOOSTING', 'MIL', 'KCF', 'TLD', 'MEDIANFLOW', 'GOTURN']
 
 
 class Det:
-    def __init__(self, prototxt, model, confidence=0.5):
+    def __init__(self, prototxt, model, confidence=0.5, bSave=False, start_id=0):
         """
         :param prototxt: path to Caffe 'deploy' prototxt file
         :param model: path to Caffe pre-trained model
@@ -33,16 +36,19 @@ class Det:
 
         prototxt = prototxt  # help="path to Caffe 'deploy' prototxt file"
         model = model
-        self.tracker_type = TRACK_TYPES[1]
         self.confidence = confidence
         self.thresh = 0.3
         self.margin = 10
+
+        self.bSave = bSave
+        self.save_dir = "../data/train_data"
 
         # load our serialized model from disk
         print("[INFO] loading model...")
         self.net = cv2.dnn.readNetFromCaffe(prototxt, model)
 
         self.person_trackers = []
+        self.uid = start_id
 
     def distance(self, pt1, pt2):
         return math.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
@@ -93,9 +99,9 @@ class Det:
             label = "{}: {:.2f}%".format(CLASSES[p['label']], p['score'])
             (x, y, w, h) = (p['box'] * np.array([w_r, h_r, w_r, h_r])).astype(np.int)
             if not self.det_flag:
-                color = COLORS[p['label']]
+                color = COLOR_TRACK
             else:
-                color = (0, 0, 255)
+                color = COLOR_TARGET
             cv2.rectangle(show_img, (x, y), (x+w, y+h), color, 2)
             t_y = y - 15 if y - 15 > 15 else y + 15
             cv2.putText(show_img, label, (x, t_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
@@ -161,10 +167,12 @@ class Det:
 
             else:
                 # create new tracker
+                self.uid += 1
                 (x, y, w, h) = r['box']
                 tracker = dlib.correlation_tracker()
                 tracker.start_track(img, dlib.rectangle(x, y, x + w, y + h))
                 a = {
+                    'uid': self.uid,
                     'tracker': tracker,
                     'box': r['box'],
                     'label': r['label'],
@@ -172,15 +180,18 @@ class Det:
                     'chk_num': 0
                 }
                 self.person_trackers.append(a)
+                if self.bSave:
+                    self.__save_rect(img=img, rect=a['box'])
+
             j += 1
 
-    def __track_rects(self, img):
+    def __track_rects(self, img, chk_num_thresh):
         height, width = img.shape[:2]
 
         to_dels = []
         for p in self.person_trackers:
             _ = p['tracker'].update(img)
-            if p['chk_num'] < -10:
+            if p['chk_num'] < -chk_num_thresh:
                 to_dels.append(p)
 
             loc = p['tracker'].get_position()
@@ -194,10 +205,11 @@ class Det:
             self.person_trackers.remove(d)
 
     def run(self, video, zoom_ratio=0.5, skip=5):
-        # initialize the video stream, allow the cammera sensor to warmup,
-        # and initialize the FPS counter
-        print("[INFO] starting video stream...")
+        if self.bSave:
+            zoom_ratio = 1.0
+            skip = 5
 
+        print("[INFO] starting video stream...")
         cap = cv2.VideoCapture(video)
         time.sleep(2.0)
         fps = FPS().start()
@@ -222,7 +234,7 @@ class Det:
                 persons = self.__detect_persons(img=resize)
                 self.__update_trackers(img=resize, rects=persons)
             else:
-                self.__track_rects(img=resize)
+                self.__track_rects(img=resize, chk_num_thresh=3)
 
             result = self.__show_rects(show_img=show_img, img=resize)
 
@@ -248,11 +260,21 @@ class Det:
         saver.release()
         cap.release()
 
+    def __save_rect(self, img, rect):
+        (x, y, w, h) = rect
+        crop = img[y:y+h, x:x+w]
+        path = os.path.join(self.save_dir, str(self.uid) + ".jpg")
+        cv2.imwrite(path, crop)
+        print(self.uid)
+
 
 if __name__ == '__main__':
     paths = ["MobileNetSSD_deploy.prototxt.txt", "MobileNetSSD_deploy.caffemodel"]
-    det = Det(prototxt=paths[0], model=paths[1])
+    dir = "../data/video/helmet/"
+    fns = ["Armed Robbery at I Care Pharmacy May 23 2011.mp4",
+           "Bloody robbery caught by a cctv.mp4",
+           "cctv robbery.mp4",
+           "Helmet thief stealing in Semenyih pharmacy recorded by GASS HD CCTV.mp4"]
 
-    # video = "../data/crop1/crop.mp4"
-    video = "../data/video/helmet/cctv robbery.mp4"
-    det.run(video=video, zoom_ratio=1.0)
+    det = Det(prototxt=paths[0], model=paths[1], bSave=True, start_id=160)
+    det.run(video=dir+fns[3])
