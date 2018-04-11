@@ -1,3 +1,6 @@
 data/
 .idea/
 *.pyc
+script/climb_det/model
+script/helmet_det/model
+script/person_det/model

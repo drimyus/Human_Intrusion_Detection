@@ -15,13 +15,12 @@ CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
            "bottle", "bus", "car", "cat", "chair",
            "cow", "diningtable", "dog", "horse", "motorbike",
            "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
-TARGET_OBJs = [15]  # person   14, 7, 6
-
+TARGET_OBJs = [15]  # person
 
 
 class PersonDetect:
     def __init__(self, bSave=False, start_id=0):
-        prototxt, model = ["./MobileNetSSD_deploy.prototxt.txt", "./MobileNetSSD_deploy.caffemodel"]
+        prototxt, model = ["./model/MobileNetSSD_deploy.prototxt.txt", "./model/MobileNetSSD_deploy.caffemodel"]
         if not os.path.exists(prototxt) or not os.path.exists(model):
             sys.stderr.write("can not load pre traind models")
             return
@@ -184,12 +183,12 @@ class PersonDetect:
         for d in to_dels:
             self.person_trackers.remove(d)
 
-    def run(self, video, zoom_ratio=0.5, skip=5):
+    def train_data(self, video, zoom_ratio=1.0, skip=5):
         if self.bSave:
             zoom_ratio = 1.0
             skip = 5
 
-        print("[INFO] starting video stream...")
+        print("starting video stream...")
         cap = cv2.VideoCapture(video)
         time.sleep(2.0)
         fps = FPS().start()
@@ -205,14 +204,14 @@ class PersonDetect:
         while True:
             cnt += 1
             suc, frame = cap.read()
+            frame = cv2.resize(frame, (int(dst_width*2), int(dst_height*2)))
             if not suc:
                 break
             show_img = frame.copy()
             resize = imutils.resize(frame, width=dst_width)
 
             if cnt % skip == 0:
-                persons = self.__detect_persons(img=resize)
-                self.__update_trackers(img=resize, rects=persons)
+                self.update_trackers(img=resize)
             else:
                 self.upgrade_trackers(img=resize, chk_num_thresh=3)
 
@@ -232,8 +231,8 @@ class PersonDetect:
 
         # stop the timer and display FPS information
         fps.stop()
-        print("[INFO] elapsed time: {:.2f}".format(fps.elapsed()))
-        print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
+        print("elapsed time: {:.2f}".format(fps.elapsed()))
+        print("approx. FPS: {:.2f}".format(fps.fps()))
 
         # do a bit of cleanup
         cv2.destroyAllWindows()
@@ -242,17 +241,35 @@ class PersonDetect:
 
     def __save_rect(self, img, rect):
         (x, y, w, h) = rect
-        crop = img[y:y+h, x:x+w]
+        crop = img[y - self.margin:y + h + self.margin, x - self.margin:x + w + self.margin]
         path = os.path.join(self.save_dir, str(self.uid) + ".jpg")
         cv2.imwrite(path, crop)
         print(self.uid)
 
+    def __show_rects(self, show_img, img):
+        h_r = float(show_img.shape[0]) / img.shape[0]
+        w_r = float(show_img.shape[1]) / img.shape[1]
+
+        # draw the prediction on the frame
+        for p in self.person_trackers:
+            label = "{}: {:.2f}%".format(CLASSES[p['label']], p['score'])
+            (x, y, w, h) = (p['box'] * np.array([w_r, h_r, w_r, h_r])).astype(np.int)
+            if not self.det_flag:
+                color = (255, 255, 0)
+            else:
+                color = (0, 0, 255)
+            cv2.rectangle(show_img, (x, y), (x + w, y + h), color, 2)
+            t_y = y - 15 if y - 15 > 15 else y + 15
+            cv2.putText(show_img, label, (x, t_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+        return show_img
+
 
 if __name__ == '__main__':
-    fns = ["Armed Robbery at I Care Pharmacy May 23 2011.mp4",
-           "Bloody robbery caught by a cctv.mp4",
-           "cctv robbery.mp4",
-           "Helmet thief stealing in Semenyih pharmacy recorded by GASS HD CCTV.mp4"]
-
-    det = PersonDetect(bSave=True, start_id=160)
-    det.run(video=dir+fns[3])
+    pd = PersonDetect(bSave=True, start_id=42)
+    fn = [
+        "/home/be/Documents/BE/HIDM/data/video/climbing/crop1/crop.mp4",
+        "/home/be/Documents/BE/HIDM/data/video/climbing/crop1/crop2.mp4",
+        "/home/be/Documents/BE/HIDM/data/video/climbing/Home Robbers Climb Over Spiked Fence Caught On CCTV.mp4"
+        ]
+    pd.train_data(video=fn[1])

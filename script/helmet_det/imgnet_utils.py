@@ -10,7 +10,7 @@ from node_lookup import NodeLookup
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # for disable the info log of tensorflow
 
 
-class ImgNet:
+class ImgNetUtils:
     def __init__(self):
         self.MODEL_DIR = "./model"
         self.DATA_URL = 'http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz'
@@ -71,7 +71,7 @@ class ImgNet:
 
     def get_feature(self, img):
         if img is None:
-            return False
+            sys.exit(1)
         tf.reset_default_graph()
         tf.Graph().as_default()
 
@@ -96,14 +96,14 @@ class ImgNet:
 
 
 if __name__ == '__main__':
-    incep = ImgNet()
-    dir = "../../data/train_data"
+    inu = ImgNetUtils()
+    dir = "../../data/train_data/pos"
     fns = os.listdir(dir)
     fns.sort()
     for fn in fns:
         print fn
         img_path = os.path.join(dir, fn)
-        incep.inference(img_path=img_path)
+        inu.inference(img_path=img_path)
 
         # img = cv2.imread(img_path)
         # cv2.imshow("img", img)
