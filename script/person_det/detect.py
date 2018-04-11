@@ -10,44 +10,34 @@ import dlib
 
 
 # initialize the list of class labels MobileNet SSD was trained to
-# detect, then generate a set of bounding box colors for each class
+# person_det, then generate a set of bounding box colors for each class
 CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
            "bottle", "bus", "car", "cat", "chair",
            "cow", "diningtable", "dog", "horse", "motorbike",
            "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
 TARGET_OBJs = [15]  # person   14, 7, 6
-COLORS = np.random.uniform(0, 255, size=(len(CLASSES), 3))
-COLOR_TRACK = (255, 255, 0)
-COLOR_TARGET = (0, 0, 255)
 
-TRACK_TYPES = ['BOOSTING', 'MIL', 'KCF', 'TLD', 'MEDIANFLOW', 'GOTURN']
 
 
 class PersonDetect:
-    def __init__(self, prototxt, model, confidence=0.5, bSave=False, start_id=0):
-        """
-        :param prototxt: path to Caffe 'deploy' prototxt file
-        :param model: path to Caffe pre-trained model
-        :param confidence: minimum probability to filter weak detections  default = 0.2
-        """
+    def __init__(self, bSave=False, start_id=0):
+        prototxt, model = ["./MobileNetSSD_deploy.prototxt.txt", "./MobileNetSSD_deploy.caffemodel"]
         if not os.path.exists(prototxt) or not os.path.exists(model):
             sys.stderr.write("can not load pre traind models")
             return
 
-        prototxt = prototxt  # help="path to Caffe 'deploy' prototxt file"
-        model = model
-        self.confidence = confidence
+        # load our serialized model from disk
+        print("loading model...")
+        self.net = cv2.dnn.readNetFromCaffe(prototxt, model)
+
+        self.confidence = 0.5
         self.thresh_same_rect = 0.5
         self.margin = 10
 
         self.person_trackers = []
 
-        # load our serialized model from disk
-        print("[INFO] loading model...")
-        self.net = cv2.dnn.readNetFromCaffe(prototxt, model)
-
         self.bSave = bSave
-        self.save_dir = "../data/train_data"
+        self.save_dir = "../../data/train_data"
         self.uid = start_id
 
     def __dist_pt2pt(self, pt1, pt2):
@@ -91,23 +81,8 @@ class PersonDetect:
                                 'box': (x1, y1, x2 - x1, y2 - y1)})
         return persons
 
-    # def __show_rects(self, show_img, img):
-    #     h_r = float(show_img.shape[0]) / img.shape[0]
-    #     w_r = float(show_img.shape[1]) / img.shape[1]
-    # 
-    #     # draw the prediction on the frame
-    #     for p in self.person_trackers:
-    #         label = "{}: {:.2f}%".format(CLASSES[p['label']], p['score'])
-    #         (x, y, w, h) = (p['box'] * np.array([w_r, h_r, w_r, h_r])).astype(np.int)
-    #         if not self.det_flag:
-    #             color = COLOR_TRACK
-    #         else:
-    #             color = COLOR_TARGET
-    #         cv2.rectangle(show_img, (x, y), (x+w, y+h), color, 2)
-    #         t_y = y - 15 if y - 15 > 15 else y + 15
-    #         cv2.putText(show_img, label, (x, t_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-    # 
-    #     return show_img
+    def get_trackers(self):
+        return self.person_trackers
 
     def __same_rect(self, before, after):
         (x1, y1, w1, h1) = before
@@ -274,12 +249,10 @@ class PersonDetect:
 
 
 if __name__ == '__main__':
-    paths = ["MobileNetSSD_deploy.prototxt.txt", "MobileNetSSD_deploy.caffemodel"]
-    dir = "../data/video/helmet/"
     fns = ["Armed Robbery at I Care Pharmacy May 23 2011.mp4",
            "Bloody robbery caught by a cctv.mp4",
            "cctv robbery.mp4",
            "Helmet thief stealing in Semenyih pharmacy recorded by GASS HD CCTV.mp4"]
 
-    det = Det(prototxt=paths[0], model=paths[1], bSave=True, start_id=160)
+    det = PersonDetect(bSave=True, start_id=160)
     det.run(video=dir+fns[3])
