@@ -12,8 +12,9 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # for disable the info log of tensorfl
 
 class ImgNetUtils:
     def __init__(self):
-        self.MODEL_DIR = "./model"
-        self.DATA_URL = 'http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz'
+        root = os.path.dirname(__file__)
+        self.model_path = os.path.join(root, "model")
+        self.data_url = 'http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz'
 
         self.sess, self.softmax_tensor = None, None
 
@@ -25,7 +26,7 @@ class ImgNetUtils:
         self.sess = tf.Session(config=config)
 
         self.softmax_tensor = self.sess.graph.get_tensor_by_name('softmax:0')
-        self.node_lookup = NodeLookup(model_dir=self.MODEL_DIR)
+        self.node_lookup = NodeLookup(model_dir=self.model_path)
         self.num_top_predictions = 5
 
         self.keyword = "helmet"
@@ -34,17 +35,17 @@ class ImgNetUtils:
         """Creates a graph from saved GraphDef file and returns a saver."""
         # Creates graph from saved graph_def.pb.
         with tf.gfile.FastGFile(os.path.join(
-                self.MODEL_DIR, 'classify_image_graph_def.pb'), 'rb') as f:
+                self.model_path, 'classify_image_graph_def.pb'), 'rb') as f:
             graph_def = tf.GraphDef()
             graph_def.ParseFromString(f.read())
             _ = tf.import_graph_def(graph_def, name='')
 
     def maybe_download_and_extract(self):
         """Download and extract model tar file."""
-        dest_directory = self.MODEL_DIR
+        dest_directory = self.model_path
         if not os.path.exists(dest_directory):
             os.makedirs(dest_directory)
-        filename = self.DATA_URL.split('/')[-1]
+        filename = self.data_url.split('/')[-1]
         filepath = os.path.join(dest_directory, filename)
         if not os.path.exists(filepath):
             def _progress(count, block_size, total_size):
@@ -52,7 +53,7 @@ class ImgNetUtils:
                     filename, float(count * block_size) / float(total_size) * 100.0))
                 sys.stdout.flush()
 
-            filepath, _ = urllib.request.urlretrieve(self.DATA_URL, filepath, _progress)
+            filepath, _ = urllib.request.urlretrieve(self.data_url, filepath, _progress)
 
             statinfo = os.stat(filepath)
             print('    Successfully downloaded' + filename + str(statinfo.st_size) + 'bytes.\n')

@@ -6,7 +6,8 @@ from sklearn.externals import joblib
 
 class ClimbDet:
     def __init__(self):
-        self.model_path = "./model/model.pkl"
+        root = os.path.dirname(__file__)
+        self.model_path = os.path.join(root, "model/model.pkl")
         if os.path.isfile(self.model_path):
             try:
                 # loading

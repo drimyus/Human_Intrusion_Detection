@@ -13,7 +13,7 @@ def train(pos_img_dir, neg_img_dir, model_path):
     data = []  # initialize the data matrix and labels list
     labels = []
 
-    sys.stdout.write("\tScanning the dataset.\n")
+    sys.stdout.write("Scanning the dataset.\n")
     for fn in os.listdir(neg_img_dir):
         if not os.path.splitext(fn)[1] == ".jpg":
             continue
@@ -35,7 +35,7 @@ def train(pos_img_dir, neg_img_dir, model_path):
         labels.append("pos")
 
     """-----------------------------------------------------------------------------------------"""
-    sys.stdout.write("Training the model.\n")
+    sys.stdout.write("Training the model...\n")
     # Configure the model : linear SVM model with probability capabilities
     model = SVC(C=1.0, kernel='linear', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=True,
                 tol=0.001, cache_size=200, class_weight='balanced', verbose=False, max_iter=-1,
@@ -47,7 +47,7 @@ def train(pos_img_dir, neg_img_dir, model_path):
 
     joblib.dump(model, model_path)
     """-----------------------------------------------------------------------------------------"""
-    sys.stdout.write("\tFinished the training.\n")
+    sys.stdout.write("Finished the training.\n")
 
 
 if __name__ == '__main__':

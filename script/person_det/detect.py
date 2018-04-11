@@ -20,7 +20,10 @@ TARGET_OBJs = [15]  # person
 
 class PersonDetect:
     def __init__(self, bSave=False, start_id=0):
-        prototxt, model = ["./model/MobileNetSSD_deploy.prototxt.txt", "./model/MobileNetSSD_deploy.caffemodel"]
+        root = os.path.dirname(__file__)
+        prototxt = os.path.join(root, "model/MobileNetSSD_deploy.prototxt.txt")
+        model = os.path.join(root, "model/MobileNetSSD_deploy.caffemodel")
+
         if not os.path.exists(prototxt) or not os.path.exists(model):
             sys.stderr.write("can not load pre traind models")
             return
