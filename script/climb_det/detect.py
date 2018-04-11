@@ -19,7 +19,7 @@ class ClimbDet:
             sys.stderr.write("    No exist Model {}, so it should be trained\n".format(self.model_path))
             sys.exit(0)
 
-    def predict_obj(self, feature):
+    def climb_detect(self, feature):
         feature = feature.reshape(1, -1)
 
         # Get a prediction from the model including probability:
@@ -32,6 +32,7 @@ class ClimbDet:
 
         if sort_probab[0] / sort_probab[1] > 0.7:
             predlbl = self.model.classes_[max_ind]
+            predlbl = (predlbl == "pos")
         else:
             predlbl = None
 
