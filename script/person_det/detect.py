@@ -78,7 +78,7 @@ class PersonDetect:
                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                 (x1, y1, x2, y2) = box.astype("int")
 
-                persons.append({'label': idx,
+                persons.append({'label': '',  # idx,
                                 'score': confidence * 100,
                                 'box': (x1, y1, x2 - x1, y2 - y1)})
         return persons
@@ -198,9 +198,6 @@ class PersonDetect:
         dst_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) * zoom_ratio)
         dst_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) * zoom_ratio)
 
-        fourcc = cv2.VideoWriter_fourcc(*'X264')
-        saver = cv2.VideoWriter("result.avi", fourcc, 30.0, (dst_width, dst_height))
-
         cnt = -1
         self.det_flag = False
         # loop over the frames from the video stream
@@ -230,7 +227,6 @@ class PersonDetect:
                 self.det_flag = True
             # update the FPS counter
             fps.update()
-            saver.write(result)
 
         # stop the timer and display FPS information
         fps.stop()
@@ -239,7 +235,6 @@ class PersonDetect:
 
         # do a bit of cleanup
         cv2.destroyAllWindows()
-        saver.release()
         cap.release()
 
     def __save_rect(self, img, rect):
@@ -255,7 +250,7 @@ class PersonDetect:
 
         # draw the prediction on the frame
         for p in self.person_trackers:
-            label = "{}: {:.2f}%".format(CLASSES[p['label']], p['score'])
+            label = "person: {:.2f}%".format(p['score'])
             (x, y, w, h) = (p['box'] * np.array([w_r, h_r, w_r, h_r])).astype(np.int)
             if not self.det_flag:
                 color = (255, 255, 0)

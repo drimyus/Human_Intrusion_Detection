@@ -67,7 +67,7 @@ class ImgNetUtils:
             tf.logging.fatal('File does not exist %s', img_path)
 
         feature = self.get_feature(img=cv2.imread(img_path))
-        result = self.detect(predictions=feature)
+        result = self.helmet_detect(predictions=feature)
         print result
 
     def get_feature(self, img):
@@ -83,15 +83,13 @@ class ImgNetUtils:
 
         return predictions
 
-    def detect(self, predictions):
+    def helmet_detect(self, predictions):
         top_k = predictions.argsort()[-self.num_top_predictions:][::-1]
         for node_id in top_k:
             human_string = self.node_lookup.id_to_string(node_id)
             score = predictions[node_id]
             if human_string.find(self.keyword) != -1:
                 print('%s (score = %.5f)' % (human_string, score))
-                cv2.imshow(self.keyword, cv2.imread(img_path))
-                cv2.waitKey(1)
                 return True
         return False
 

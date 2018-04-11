@@ -3,12 +3,15 @@ import numpy as np
 import imutils
 import time
 import cv2
-import sys
 import os
 
-from person_det.detect import PersonDetect
-pd = PersonDetect()
+from script.person_det.detect import PersonDetect
+from script.helmet_det.imgnet_utils import ImgNetUtils
+from script.climb_det.detect import ClimbDet
 
+pd = PersonDetect()
+inu = ImgNetUtils()
+cd = ClimbDet()
 
 COLOR_TRACK = (255, 255, 0)
 COLOR_TARGET = (0, 0, 255)
@@ -20,9 +23,9 @@ def show_rects(show_img, img, trackers):
 
     # draw the prediction on the frame
     for p in trackers:
-        label = "{}: {:.2f}%".format(CLASSES[p['label']], p['score'])
+        label = p['label']
         (x, y, w, h) = (p['box'] * np.array([w_r, h_r, w_r, h_r])).astype(np.int)
-        if not self.det_flag:
+        if label != '':
             color = COLOR_TRACK
         else:
             color = COLOR_TARGET
@@ -33,12 +36,22 @@ def show_rects(show_img, img, trackers):
     return show_img
 
 
-def run(self, video, zoom_ratio=0.5, skip=5):
-    if self.bSave:
-        zoom_ratio = 1.0
-        skip = 5
+def predict_labels(img, persons):
+    for p in persons:
+        (x, y, w, h) = p['box']
+        crop = img[int(y):int(y + h), int(x):int(x + w)]
+
+        feature = inu.get_feature(img=crop)
+        is_helmet = inu.helmet_detect(predictions=feature)
+        is_climb, _, _ = cd.climb_detect(feature=feature)
+
+        p['label'] = is_climb * "Climb" + is_helmet * "Helmet"
+
+
+def run(video, zoom_ratio=0.5, skip=5):
 
     print("starting video stream...")
+
     cap = cv2.VideoCapture(video)
     time.sleep(2.0)
     fps = FPS().start()
@@ -49,7 +62,6 @@ def run(self, video, zoom_ratio=0.5, skip=5):
     saver = cv2.VideoWriter("result.avi", fourcc, 30.0, (dst_width, dst_height))
 
     cnt = -1
-    self.det_flag = False
     # loop over the frames from the video stream
     while True:
         cnt += 1
@@ -61,6 +73,7 @@ def run(self, video, zoom_ratio=0.5, skip=5):
 
         if cnt % skip == 0:
             pd.update_trackers(img=resize)
+            predict_labels(img=resize, persons=pd.get_trackers())
         else:
             pd.upgrade_trackers(img=resize, chk_num_thresh=3)
 
@@ -72,8 +85,6 @@ def run(self, video, zoom_ratio=0.5, skip=5):
         # if the `q` key was pressed, break from the loop
         if key == ord("q"):
             break
-        elif key == ord("s"):
-            self.det_flag = True
         # update the FPS counter
         fps.update()
         saver.write(result)
@@ -90,10 +101,15 @@ def run(self, video, zoom_ratio=0.5, skip=5):
 
 
 if __name__ == '__main__':
-    dir = "../data/video/helmet/"
+    folder = "../data/video/helmet/"
     fns = ["Armed Robbery at I Care Pharmacy May 23 2011.mp4",
            "Bloody robbery caught by a cctv.mp4",
            "cctv robbery.mp4",
            "Helmet thief stealing in Semenyih pharmacy recorded by GASS HD CCTV.mp4"]
 
-    det.run(video=dir+fns[3])
+    video = folder + fns[3]
+    if os.path.exists(video):
+        run(video=video)
+    else:
+        print "no exist file"
+
