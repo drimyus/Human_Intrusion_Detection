@@ -34,7 +34,7 @@ class Det:
         model = model
         self.tracker_type = TRACK_TYPES[1]
         self.confidence = confidence
-        self.thresh = 0.3
+        self.thresh = 0.5
         self.margin = 10
 
         # load our serialized model from disk
@@ -78,6 +78,8 @@ class Det:
                 rects.append({'label': idx,
                               'score': confidence * 100,
                               'box': (x1, y1, x2 - x1, y2 - y1)})
+
+
         return rects
 
     def __show_rects(self, show_img, frame):
@@ -103,25 +105,20 @@ class Det:
         (x1, y1, w1, h1) = rect1
         (x2, y2, w2, h2) = rect2
 
-        # overlay_rect
-        _x = max(x1, x2)
-        _y = max(y1, y2)
-        _w = min(x1 + w1, x2 + w2) - _x
-        _h = min(y1 + h1, y2 + h2) - _y
+        vec1 = (x1 + w1 / 2, y1 + h1 / 2)
+        len_vec1 = math.sqrt(vec1[0] ** 2 + vec1[1] ** 2)
+        vec2 = (x2 + w2 / 2, y2 + h2 / 2)
+        len_vec2 = math.sqrt(vec2[0] ** 2 + vec2[1] ** 2)
 
-        min_sz = min(w1 * h1, w2 * h2)
-        overlay_sz = _w * _h
+        vec_diff = math.sqrt((vec1[0] - vec2[0]) ** 2 + (vec1[1] - vec2[1]) ** 2) * 2 / (len_vec1 + len_vec2)
 
-        if _w <= 0 or _h <= 0 or overlay_sz < min_sz * self.thresh:
-            return False
-        else:
+        if vec_diff < self.thresh:
             return True
+        else:
+            return False
 
     def __update_trackers(self, frame, rects):
         to_adds = []
-        for t in self.trackers:
-            t['updated'] -= 1
-
         for rect in rects:
             _flag = False
             for t in self.trackers:
@@ -132,46 +129,34 @@ class Det:
                     t['label'] = rect['label']
                     t['score'] = rect['score']
                     t['box'] = avg_box
-                    t['updated'] = 0
 
                     _flag = True
                     break
             if not _flag:
                 if self.tracker_type == 'BOOSTING':
                     tracker = cv2.TrackerBoosting_create()
-                elif self.tracker_type == 'MIL':
+                if self.tracker_type == 'MIL':
                     tracker = cv2.TrackerMIL_create()
-                elif self.tracker_type == 'KCF':
+                if self.tracker_type == 'KCF':
                     tracker = cv2.TrackerKCF_create()
-                elif self.tracker_type == 'TLD':
+                if self.tracker_type == 'TLD':
                     tracker = cv2.TrackerTLD_create()
-                elif self.tracker_type == 'MEDIANFLOW':
+                if self.tracker_type == 'MEDIANFLOW':
                     tracker = cv2.TrackerMedianFlow_create()
-                elif self.tracker_type == 'GOTURN':
+                if self.tracker_type == 'GOTURN':
                     tracker = cv2.TrackerGOTURN_create()
-
                 try:
                     tracker.init(frame, rect['box'])
                     to_adds.append({
                         'tracker': tracker,
                         'box': rect['box'],
                         'label': rect['label'],
-                        'score': rect['score'],
-                        'updated': 0,
+                        'score': rect['score']
                     })
                 except Exception:
                     pass
-
         for add in to_adds:
             self.trackers.append(add)
-        i = 0
-        while i < len(self.trackers):
-            t = self.trackers[i]
-            if t['updated'] < - 10:
-                self.trackers.remove(t)
-                continue
-            else:
-                i += 1
 
     def __track_rects(self, frame):
         height, width = frame.shape[:2]
@@ -232,7 +217,7 @@ class Det:
             if key == ord("q"):
                 break
             elif key == ord("s"):
-                self.det_flag = not self.det_flag
+                self.det_flag = True
             # update the FPS counter
             fps.update()
             saver.write(result)

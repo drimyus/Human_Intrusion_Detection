@@ -12,3 +12,5 @@ if __name__ == '__main__':
     # video = "../data/crop1/crop.mp4"
     video = "../data/House Burglar (or Akyat Bahay) is Breaking a House in Cebu City  During the Christmas Season.mp4"
     det.run(video=video)
+
+
