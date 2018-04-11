@@ -23,7 +23,7 @@ COLOR_TARGET = (0, 0, 255)
 TRACK_TYPES = ['BOOSTING', 'MIL', 'KCF', 'TLD', 'MEDIANFLOW', 'GOTURN']
 
 
-class Det:
+class PersonDetect:
     def __init__(self, prototxt, model, confidence=0.5, bSave=False, start_id=0):
         """
         :param prototxt: path to Caffe 'deploy' prototxt file
@@ -37,20 +37,20 @@ class Det:
         prototxt = prototxt  # help="path to Caffe 'deploy' prototxt file"
         model = model
         self.confidence = confidence
-        self.thresh = 0.3
+        self.thresh_same_rect = 0.5
         self.margin = 10
 
-        self.bSave = bSave
-        self.save_dir = "../data/train_data"
+        self.person_trackers = []
 
         # load our serialized model from disk
         print("[INFO] loading model...")
         self.net = cv2.dnn.readNetFromCaffe(prototxt, model)
 
-        self.person_trackers = []
+        self.bSave = bSave
+        self.save_dir = "../data/train_data"
         self.uid = start_id
 
-    def distance(self, pt1, pt2):
+    def __dist_pt2pt(self, pt1, pt2):
         return math.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
 
     def __detect_persons(self, img):
@@ -85,30 +85,31 @@ class Det:
             if confidence > self.confidence and idx in TARGET_OBJs:
                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                 (x1, y1, x2, y2) = box.astype("int")
+
                 persons.append({'label': idx,
                                 'score': confidence * 100,
                                 'box': (x1, y1, x2 - x1, y2 - y1)})
         return persons
 
-    def __show_rects(self, show_img, img):
-        h_r = float(show_img.shape[0]) / img.shape[0]
-        w_r = float(show_img.shape[1]) / img.shape[1]
+    # def __show_rects(self, show_img, img):
+    #     h_r = float(show_img.shape[0]) / img.shape[0]
+    #     w_r = float(show_img.shape[1]) / img.shape[1]
+    # 
+    #     # draw the prediction on the frame
+    #     for p in self.person_trackers:
+    #         label = "{}: {:.2f}%".format(CLASSES[p['label']], p['score'])
+    #         (x, y, w, h) = (p['box'] * np.array([w_r, h_r, w_r, h_r])).astype(np.int)
+    #         if not self.det_flag:
+    #             color = COLOR_TRACK
+    #         else:
+    #             color = COLOR_TARGET
+    #         cv2.rectangle(show_img, (x, y), (x+w, y+h), color, 2)
+    #         t_y = y - 15 if y - 15 > 15 else y + 15
+    #         cv2.putText(show_img, label, (x, t_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+    # 
+    #     return show_img
 
-        # draw the prediction on the frame
-        for p in self.person_trackers:
-            label = "{}: {:.2f}%".format(CLASSES[p['label']], p['score'])
-            (x, y, w, h) = (p['box'] * np.array([w_r, h_r, w_r, h_r])).astype(np.int)
-            if not self.det_flag:
-                color = COLOR_TRACK
-            else:
-                color = COLOR_TARGET
-            cv2.rectangle(show_img, (x, y), (x+w, y+h), color, 2)
-            t_y = y - 15 if y - 15 > 15 else y + 15
-            cv2.putText(show_img, label, (x, t_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-
-        return show_img
-
-    def same_rect(self, before, after):
+    def __same_rect(self, before, after):
         (x1, y1, w1, h1) = before
         (x2, y2, w2, h2) = after
 
@@ -121,12 +122,12 @@ class Det:
         min_sz = min(w1 * h1, w2 * h2)
         overlay_sz = _w * _h
 
-        if _w <= 0 or _h <= 0 or overlay_sz < min_sz * self.thresh:
+        if _w <= 0 or _h <= 0 or overlay_sz < min_sz * self.thresh_same_rect:
             return False
         else:
             return True
 
-    def __update_trackers(self, img, rects):
+    def __update(self, img, rects):
         for p in self.person_trackers:
             p['chk_num'] -= 1
 
@@ -143,7 +144,7 @@ class Det:
                 p = self.person_trackers[i]
                 (x1, y1, w1, h1) = p['box']
                 (x2, y2, w2, h2) = r['box']
-                cur_dis = self.distance(pt1=(x1 + w1 // 2, y1 + h1 // 2), pt2=(x2 + w2 // 2, y2 + h2 // 2))
+                cur_dis = self.__dist_pt2pt(pt1=(x1 + w1 // 2, y1 + h1 // 2), pt2=(x2 + w2 // 2, y2 + h2 // 2))
 
                 if min_dis is None or min_dis > cur_dis:
                     min_dis = cur_dis
@@ -153,7 +154,7 @@ class Det:
 
             b_same = False
             if matched is not None:
-                b_same = self.same_rect(before=matched['box'], after=r['box'])
+                b_same = self.__same_rect(before=matched['box'], after=r['box'])
 
             if b_same:
                 avg_box = tuple((np.array(matched['box']) * 0.5 + np.array(r['box']) * 0.5).astype(np.int))
@@ -185,7 +186,11 @@ class Det:
 
             j += 1
 
-    def __track_rects(self, img, chk_num_thresh):
+    def update_trackers(self, img):
+        persons = self.__detect_persons(img=img)
+        self.__update(img=img, rects=persons)
+
+    def upgrade_trackers(self, img, chk_num_thresh):
         height, width = img.shape[:2]
 
         to_dels = []
@@ -234,7 +239,7 @@ class Det:
                 persons = self.__detect_persons(img=resize)
                 self.__update_trackers(img=resize, rects=persons)
             else:
-                self.__track_rects(img=resize, chk_num_thresh=3)
+                self.upgrade_trackers(img=resize, chk_num_thresh=3)
 
             result = self.__show_rects(show_img=show_img, img=resize)
 
@@ -245,7 +250,7 @@ class Det:
             if key == ord("q"):
                 break
             elif key == ord("s"):
-                self.det_flag = not self.det_flag
+                self.det_flag = True
             # update the FPS counter
             fps.update()
             saver.write(result)

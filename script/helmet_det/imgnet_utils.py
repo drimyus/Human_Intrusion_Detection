@@ -26,7 +26,9 @@ class ImgNet:
 
         self.softmax_tensor = self.sess.graph.get_tensor_by_name('softmax:0')
         self.node_lookup = NodeLookup(model_dir=self.MODEL_DIR)
-        self.num_top_predictions = 10
+        self.num_top_predictions = 5
+
+        self.keyword = "helmet"
 
     def create_graph(self):
         """Creates a graph from saved GraphDef file and returns a saver."""
@@ -58,40 +60,44 @@ class ImgNet:
 
     def inference(self, img_path):
         # fix error classifier's "Graph is finalized and cannot be modified."
+        tf.reset_default_graph()
+        tf.Graph().as_default()
+        if not tf.gfile.Exists(img_path):
+            tf.logging.fatal('File does not exist %s', img_path)
 
-        # Some useful tensors:
-        # 'softmax:0': A tensor containing the normalized prediction across
-        #   1000 labels.
-        # 'pool_3:0': A tensor containing the next-to-last layer containing 2048
-        #   float description of the image.
-        # 'DecodeJpeg/contents:0': A tensor containing a string providing JPEG
-        #   encoding of the image.
-        # Runs the softmax tensor by feeding the image_data as input to the graph.
+        feature = self.get_feature(img=cv2.imread(img_path))
+        result = self.detect(predictions=feature)
+        print result
 
+    def get_feature(self, img):
+        if img is None:
+            return False
         tf.reset_default_graph()
         tf.Graph().as_default()
 
-        if not tf.gfile.Exists(img_path):
-            tf.logging.fatal('File does not exist %s', img_path)
-        image_data = tf.gfile.FastGFile(img_path, 'rb').read()
+        image_data = cv2.imencode('.jpg', img)[1].tostring()
 
         predictions = self.sess.run(self.softmax_tensor, {'DecodeJpeg/contents:0': image_data})
         predictions = np.squeeze(predictions)
 
+        return predictions
+
+    def detect(self, predictions):
         top_k = predictions.argsort()[-self.num_top_predictions:][::-1]
         for node_id in top_k:
             human_string = self.node_lookup.id_to_string(node_id)
             score = predictions[node_id]
-            if human_string.find("helmet") != -1:
-                print(img_path + "|" + '%s (score = %.5f)' % (human_string, score))
-                cv2.imshow("helmet", cv2.imread(img_path))
-                cv2.waitKey()
-        return predictions
+            if human_string.find(self.keyword) != -1:
+                print('%s (score = %.5f)' % (human_string, score))
+                cv2.imshow(self.keyword, cv2.imread(img_path))
+                cv2.waitKey(1)
+                return True
+        return False
 
 
 if __name__ == '__main__':
     incep = ImgNet()
-    dir = "../data/train_data"
+    dir = "../../data/train_data"
     fns = os.listdir(dir)
     fns.sort()
     for fn in fns:
