@@ -5,6 +5,11 @@ import time
 import cv2
 import os
 
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--video", help="path of the input video file")
+a = parser.parse_args()
+
 from script.person_det.detect import PersonDetect
 from script.helmet_det.imgnet_utils import ImgNetUtils
 from script.climb_det.detect import ClimbDet
@@ -101,13 +106,18 @@ def run(video, zoom_ratio=0.5, skip=5):
 
 
 if __name__ == '__main__':
-    folder = "../data/video/helmet/"
-    fns = ["Armed Robbery at I Care Pharmacy May 23 2011.mp4",
-           "Bloody robbery caught by a cctv.mp4",
-           "cctv robbery.mp4",
-           "Helmet thief stealing in Semenyih pharmacy recorded by GASS HD CCTV.mp4"]
+    if a.video is None:
+        folder = "../data/video/helmet/"
+        fns = ["Armed Robbery at I Care Pharmacy May 23 2011.mp4",
+               "Bloody robbery caught by a cctv.mp4",
+               "cctv_robbery.mp4",
+               "Helmet thief stealing in Semenyih pharmacy recorded by GASS HD CCTV.mp4"]
+        video = folder + fns[3]
+    else:
+        video = a.video
 
-    video = folder + fns[3]
+        # "python script/endpoint.py --video data/video/helmet/cctv_robbery.mp4"
+    print(video)
     if os.path.exists(video):
         run(video=video)
     else:
