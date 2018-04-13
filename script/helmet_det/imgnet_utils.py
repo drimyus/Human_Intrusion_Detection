@@ -31,6 +31,14 @@ class ImgNetUtils:
 
         self.keyword = "helmet"
 
+        tf.reset_default_graph()
+        tf.Graph().as_default()
+        #
+        sys.stdout.write("init check inu model.\n")
+        test_img = np.ones((20, 20, 3), dtype=np.uint8)
+        test_data = cv2.imencode('.jpg', test_img)[1].tostring()
+        _ = self.sess.run(self.softmax_tensor, {'DecodeJpeg/contents:0': test_data})
+
     def create_graph(self):
         """Creates a graph from saved GraphDef file and returns a saver."""
         # Creates graph from saved graph_def.pb.
@@ -73,8 +81,8 @@ class ImgNetUtils:
     def get_feature(self, img):
         if img is None:
             sys.exit(1)
-        tf.reset_default_graph()
-        tf.Graph().as_default()
+        # tf.reset_default_graph()
+        # tf.Graph().as_default()
 
         image_data = cv2.imencode('.jpg', img)[1].tostring()
 
