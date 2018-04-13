@@ -54,6 +54,8 @@ class StartScreen(Screen):
             height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
             self.hidm.init_HIDM(frame_size=(width, height), zoom_ratio=0.5, skip=5)
             self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+            if self.fps == 0:
+                self.fps = 30.0
 
             if self.event_take_video is None:
                 self.event_take_video = Clock.schedule_interval(self.live_video, 1.0 / self.fps)
@@ -91,11 +93,11 @@ class StartScreen(Screen):
             if not ret:
                 if self.event_take_video is not None and self.event_take_video.is_triggered:
                     self.event_take_video.cancel()
-                self.release()
+                self.__release()
 
             result_frame = self.hidm.proc(frame=frame, pos=self.frame_pos)
             self.__show_frame(frame=result_frame)
             self.frame_pos += 1
         except Exception as e:
-            self.release()
+            self.__release()
             print(e)

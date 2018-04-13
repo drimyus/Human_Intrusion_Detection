@@ -4,7 +4,7 @@
         spacing: 3
         canvas.before:
             Color:
-                rgba: .1, .3, .6, .6
+                rgba: .4, .8, .8, .6
             Rectangle:
                 size: self.size
                 pos: self.pos
@@ -14,13 +14,13 @@
             spacing: 5
             size_hint_y: 0.1
             Button:
-                id: btn_usb_cam
-                text: 'USB Camera'
-                on_release: root.on_btn_usb()
-            Button:
                 id: btn_local_video
                 text: 'Local Video'
                 on_release: root.on_btn_video()
+            Button:
+                id: btn_usb_cam
+                text: 'USB Camera'
+                on_release: root.on_btn_usb()
             Button:
                 id: btn_start
                 text: 'Start'
