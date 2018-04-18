@@ -12,6 +12,8 @@ from screens.start import StartScreen
 
 
 class HIMD_APP(App):
+    icon = 'smart_detector_log.png'
+
     def build(self):
         self.title = "Human Intruders Detection App"
         return StartScreen()
