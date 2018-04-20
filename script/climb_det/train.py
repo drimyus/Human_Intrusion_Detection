@@ -74,14 +74,14 @@ def test(model_path, img_path):
 
 
 if __name__ == '__main__':
-    # positive_dir = "../../data/train_data/pos"
-    # negative_dir = "../../data/train_data/neg"
-    # model_path = "./model/model.pkl"
-    # train(pos_img_dir=positive_dir, neg_img_dir=negative_dir, model_path=model_path)
+    positive_dir = "../../data/train_data/pos"
+    negative_dir = "../../data/train_data/neg"
+    model_path = "./model/model.pkl"
+    train(pos_img_dir=positive_dir, neg_img_dir=negative_dir, model_path=model_path)
     #
     pos_test = "../../data/train_data/pos/3.jpg"
     neg_test = "../../data/train_data/neg/1.jpg"
     model_path = "./model/model.pkl"
-    print test(model_path=model_path, img_path=neg_test)
-    print test(model_path=model_path, img_path=pos_test)
+    print(test(model_path=model_path, img_path=neg_test))
+    print(test(model_path=model_path, img_path=pos_test))
 

@@ -4,7 +4,7 @@ import imutils
 import time
 import cv2
 import os
-import pygame
+# import pygame
 from script.person_det.detect import PersonDetect
 from script.helmet_det.imgnet_utils import ImgNetUtils
 from script.climb_det.detect import ClimbDet
@@ -16,10 +16,10 @@ SAFE_MSG = "Motion Detected"
 ALARM_MSG = "Possible Intruders...Activating Alarm"
 
 SOUND_ALARM = os.path.dirname(os.path.realpath(__file__)) + "/toolur_EsXo2k.mp3"
-pygame.init()
-pygame.mixer.init()
-pygame.mixer.music.load(SOUND_ALARM)
-
+# pygame.init()
+# pygame.mixer.init()
+# pygame.mixer.music.load(SOUND_ALARM)
+#
 pd = PersonDetect()
 inu = ImgNetUtils()
 cd = ClimbDet()
@@ -63,7 +63,7 @@ class HIDM:
         if self.g_alarm_counter > 0:
             cv2.putText(show_img, ALARM_MSG, (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, COLOR_ALARM, 3)
 
-        self.func_sound_play()
+        # self.func_sound_play()
         self.g_alarm_counter -= 1
         self.g_motion_counter -= 1
 
@@ -99,8 +99,8 @@ class HIDM:
 
     #
     def run(self, cap):
-        width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         self.init_HIDM(frame_size=(width, height))
 
         cnt = -1
@@ -121,9 +121,11 @@ class HIDM:
         cap.release()
 
     def func_sound_play(self):
-        if not pygame.mixer.music.get_busy() and self.g_alarm_counter == self.DURATION:
-            print "alarm beef sound"
-            pygame.mixer.music.play()
+        # if not pygame.mixer.music.get_busy() and self.g_alarm_counter == self.DURATION:
+        #     print("alarm beef sound")
+        #     pygame.mixer.music.play()
+        # print("alarm beef sound")
+        pass
 
 
 if __name__ == '__main__':
@@ -139,4 +141,4 @@ if __name__ == '__main__':
     if os.path.exists(video):
         HIDM().run(cap=cv2.VideoCapture(video))
     else:
-        print "no exist file"
+        print("no exist file")

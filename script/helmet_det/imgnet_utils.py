@@ -5,7 +5,7 @@ import sys
 import tarfile
 import cv2
 from six.moves import urllib
-from node_lookup import NodeLookup
+from script.helmet_det.node_lookup import NodeLookup
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # for disable the info log of tensorflow
 
@@ -76,7 +76,7 @@ class ImgNetUtils:
 
         feature = self.get_feature(img=cv2.imread(img_path))
         result = self.helmet_detect(predictions=feature)
-        print result
+        print(result)
 
     def get_feature(self, img):
         if img is None:
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     fns = os.listdir(dir)
     fns.sort()
     for fn in fns:
-        print fn
+        print(fn)
         img_path = os.path.join(dir, fn)
         inu.inference(img_path=img_path)
 

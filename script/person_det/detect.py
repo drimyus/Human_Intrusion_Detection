@@ -138,7 +138,7 @@ class PersonDetect:
 
                 matched['box'] = avg_box
                 (x, y, w, h) = avg_box
-                matched['tracker'].start_track(img, dlib.rectangle(x, y, x + w, y + h))
+                matched['tracker'].start_track(img, dlib.rectangle(int(x), int(y), int(x + w), int(y + h)))
                 matched['label'] = r['label']
                 matched['score'] = r['score']
                 matched['chk_num'] = 0
@@ -148,7 +148,7 @@ class PersonDetect:
                 self.uid += 1
                 (x, y, w, h) = r['box']
                 tracker = dlib.correlation_tracker()
-                tracker.start_track(img, dlib.rectangle(x, y, x + w, y + h))
+                tracker.start_track(img, dlib.rectangle(int(x), int(y), int(x + w), int(y + h)))
                 a = {
                     'uid': self.uid,
                     'tracker': tracker,
