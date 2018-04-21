@@ -78,21 +78,18 @@ class HIDM:
 
     #
     def run_pi_cam(self, feed, mode, show=False):
-        cap = cv2.VideoCapture(feed)
-        if cap is None:
-            sys.stdout.write("can not load video capture.\n")
-            sys.exit(0)
-        width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        self.init_HIDM(frame_size=(width, height))
+        from picamera import Picamera
+        from picamera.array import PiRGBArray
+        cam = Picamera(resolution=(640, 480))
+        raw_capture = PiRGBArray(cam, cam.resolution)
+        time.sleep(2)
+
+        self.init_HIDM(frame_size=(640, 480))
 
         cnt = -1
-        while True:
-            cnt += 1
-            suc, frame = cap.read()
-            if not suc:
-                break
-
+        for _img in cam.capture_continuous(raw_capture, format='bgr', use_video_port=True):
+            # s_time = time.time()
+            frame = np.asarray(_img.array)
             show_img = frame.copy()
             resize = cv2.resize(frame, (self.dst_width, self.dst_height))
             if cnt % self.skip == 0:
@@ -105,12 +102,13 @@ class HIDM:
             if key == ord("q"):
                 break
 
+            raw_capture.truncate(0)
         cv2.destroyAllWindows()
-        cap.release()
 
     #
     def run(self, feed, mode, show=False):
         cap = cv2.VideoCapture(feed)
+        time.sleep(2)
         if cap is None:
             sys.stdout.write("can not load video capture.\n")
             sys.exit(0)
