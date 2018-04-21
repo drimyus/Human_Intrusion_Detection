@@ -45,7 +45,7 @@ class PersonDetect:
     def __dist_pt2pt(self, pt1, pt2):
         return math.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
 
-    def __detect_persons(self, img):
+    def detect_persons(self, img):
         # grab the frame dimensions and convert it to a blob
         (h, w) = img.shape[:2]
         # load the input image and construct an input blob for the image
@@ -164,7 +164,7 @@ class PersonDetect:
             j += 1
 
     def update_trackers(self, img):
-        persons = self.__detect_persons(img=img)
+        persons = self.detect_persons(img=img)
         self.__update(img=img, rects=persons)
 
     def upgrade_trackers(self, img, chk_num_thresh):

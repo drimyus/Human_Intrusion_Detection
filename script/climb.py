@@ -6,7 +6,6 @@ import cv2
 import os
 # import pygame
 from script.person_det.detect import PersonDetect
-from script.helmet_det.imgnet_utils import ImgNetUtils
 from script.climb_det.detect import ClimbDet
 
 
@@ -21,7 +20,6 @@ SOUND_ALARM = os.path.dirname(os.path.realpath(__file__)) + "/toolur_EsXo2k.mp3"
 # pygame.mixer.music.load(SOUND_ALARM)
 #
 pd = PersonDetect()
-inu = ImgNetUtils()
 cd = ClimbDet()
 
 
@@ -34,7 +32,7 @@ class HIDM:
         self.dst_width, self.dst_height = None, None
         self.skip = None
 
-    def init_HIDM(self, frame_size, zoom_ratio = 0.5, skip=5):
+    def init_HIDM(self, frame_size, zoom_ratio=0.5, skip=20):
         self.dst_width = int(frame_size[0] * zoom_ratio)
         self.dst_height = int(frame_size[1] * zoom_ratio)
         self.skip = skip
