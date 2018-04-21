@@ -155,7 +155,7 @@ if __name__ == '__main__':
     print(video)
 
     import json
-    with open("../input.json", "r") as fp:
+    with open("input.json", "r") as fp:
         settings = json.load(fp)
 
     mode = settings['mode']

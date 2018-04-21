@@ -1,5 +1,5 @@
 {
     "mode": "helmet",
-    "input": "../data/video/helmet/Armed Robbery at I Care Pharmacy May 23 2011.mp4",
+    "input": "./data/video/helmet/Armed Robbery at I Care Pharmacy May 23 2011.mp4",
     "show": "True"
 }
