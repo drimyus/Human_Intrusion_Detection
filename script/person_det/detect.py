@@ -48,7 +48,7 @@ class PersonDetect:
     def detect_persons(self, img):
         # grab the frame dimensions and convert it to a blob
         (h, w) = img.shape[:2]
-        # load the input image and construct an input blob for the image
+        # load the input.json image and construct an input.json blob for the image
         # by resizing to a fixed 300x300 pixels and then normalizing it
         # (note: normalization is done via the authors of the MobileNet SSD
         # implementation)
