@@ -1,10 +1,8 @@
-from imutils.video import FPS
 import numpy as np
-import imutils
 import time
 import cv2
 import os
-# import pygame
+import pygame
 import sys
 from script.person_det.detect import PersonDetect
 from script.helmet_det.imgnet_utils import ImgNetUtils
@@ -17,9 +15,9 @@ SAFE_MSG = "Motion Detected"
 ALARM_MSG = "Possible Intruders...Activating Alarm"
 
 SOUND_ALARM = os.path.dirname(os.path.realpath(__file__)) + "/toolur_EsXo2k.mp3"
-# pygame.init()
-# pygame.mixer.init()
-# pygame.mixer.music.load(SOUND_ALARM)
+pygame.init()
+pygame.mixer.init()
+pygame.mixer.music.load(SOUND_ALARM)
 #
 pd = PersonDetect()
 cd = ClimbDet()
@@ -140,10 +138,10 @@ class HIDM:
         cap.release()
 
     def func_sound_play(self):
-        # if not pygame.mixer.music.get_busy() and self.g_alarm_counter == self.DURATION:
-        #     print("alarm beef sound")
-        #     pygame.mixer.music.play()
-        print("alarm beef sound")
+        if not pygame.mixer.music.get_busy() and self.g_alarm_counter == self.DURATION:
+            print("alarm beef sound")
+            pygame.mixer.music.play()
+        # print("alarm beef sound")
 
 
 if __name__ == '__main__':
